@@ -73,7 +73,7 @@ class AutosaveBackup:
             print "New directory {0} in {1} already exists. Exiting.".format(self.newDirectory, self.backupTop)
             sys.exit()
         else:
-            print "New directory {0} in {1} doesn't already exist: OK to create it".format(self.newDirectory, self.backupTop)
+            print "Creating target directory {0} in {1}".format(self.newDirectory, self.backupTop)
             os.mkdir(self.newDirectory)
         
     def __init__(self, bl, whichIoc):
@@ -95,7 +95,7 @@ class AutosaveBackup:
             print "Target top level directory for backing up files does not seem to exist: {0}".format(self.backupTop)
             sys.exit()
             
-        # Check which IOC is valid
+        # Check "which IOC" argument is valid
         if not self.isAnIoc(self.whichIoc):
             if not (self.whichIoc == "all"):
                 self.printUsage()
@@ -112,22 +112,28 @@ class AutosaveBackup:
             print "Exiting."
             sys.exit()
         
-        
+        # Create target directory for backup
         self.createBackupDir()
         
         # Initialise the list of files we will want to back up
         self.backupFileList = dict()
         
-        # List contents of top-level directory
-        dirsToSearch = self.scanSourceDirs()
-                
-        if (dirsToSearch is None or len(dirsToSearch) == 0):
-            print "Couldn't find any autosave directories in the source path."
-            sys.exit()
+        # If "all": list contents of top-level directory
+        if (self.whichIoc == "all"):
+            dirsToSearch = self.scanSourceDirs()
+                    
+            if (dirsToSearch is None or len(dirsToSearch) == 0):
+                print "Couldn't find any autosave directories in the source path."
+                sys.exit()
+        else:
+            # Otherwise just search for this one IOC
+            dirsToSearch = [self.whichIoc]
             
         print "\nLooking for files..."
         for onedir in dirsToSearch:
             self.backupFileList[onedir] = self.findLatestFilesIn(onedir)
+            if ( len(self.backupFileList[onedir]) == 0):
+                print "Warning: no files found for {0}.".format(onedir)
                 
         print "\nList of files we will back up:"
         for subdir in self.backupFileList:
