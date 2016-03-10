@@ -4,9 +4,15 @@
 import os, shutil, time, re, sys
 
 class AutosaveBackup:
+    """@class AutosaveBackup
+    @brief Back up most recent autosave files for a beamline
+    @description We assume the latest files are those called XXX_0.sav, XXX_1.sav and XXX_2.sav without any suffix.
+    """
     
     def isAnIoc(self, inputStr):
-        iocDirectoryPattern = r"^BL[0-9]{2}[IJ]-[A-Z]{2}-IOC-[0-9]{2}$"
+        """Check string looks like an ioc BLXXX-XX-IOC-XX
+        @param inputStr String to chceck"""
+        iocDirectoryPattern = r"^BL[0-9]{2}[BCIJ]-[A-Z]{2}-IOC-[0-9]{2}$"
         matches = re.match(iocDirectoryPattern, inputStr)
         if matches is not None:
             return True
@@ -14,6 +20,8 @@ class AutosaveBackup:
             return False
 
     def scanSourceDirs(self):
+        """Scan all directories in source directory, and return a list of subdirectories having IOC names
+        @return List of subdirectories which look like IOCs"""
         lastDirectoryPattern = r"\S+/(\S+)$"
         
         directories = os.listdir(self.autosaveTop)
@@ -29,14 +37,14 @@ class AutosaveBackup:
                 print "looks like an IOC dir"
                 dirsToSearch.append(currentdir)
             else:
-                print "doesn't look like an IOC dir."
+                print "doesn't look like an IOC dir. Skipping."
                 
         return dirsToSearch
         
     def findLatestFilesIn(self, targetDir):
-        # Want a pattern ".....01_0.sav"
-        #                ".....01_1.sav"
-        #                ".....01_2.sav"
+        """Find the latest files in targetDir, assuming they have the the form ...XXX_0.sav to ...XXX_2.sav
+        @param targetDir Directory to search
+        @return latestFiles A list of the latest files in targetDir"""
         latestFilePattern = r".+[0-9]{2}_[0-2]\.sav$"
         latestFiles = list()
         
@@ -56,6 +64,8 @@ class AutosaveBackup:
         return latestFiles
         
     def createBackupSubdir(self, subdir):
+        """Create an IOC subdirectory in the backup target directory
+        @param subdir Subdirectory name"""
         # cd to backup directory
         os.chdir(self.backupTarget)
         
@@ -65,6 +75,7 @@ class AutosaveBackup:
         os.mkdir(subdir)
         
     def createBackupDir(self):
+        """Create a new directory with date and time which will be the taret for the backup files"""
         # cd to backup top level
         os.chdir(self.backupTop)
         
@@ -76,11 +87,31 @@ class AutosaveBackup:
             print "Creating target directory {0} in {1}".format(self.newDirectory, self.backupTop)
             os.mkdir(self.newDirectory)
         
+    def startBackup(self):
+        """Begin the backup. To be called after all setup is has been done."""
+        for subdir in self.backupFileList:
+
+            # Create backup directory for this IOC
+            self.createBackupSubdir(subdir)
+
+            # Copy files across individually
+            for fileToBackUp in self.backupFileList[subdir]:
+                
+                sourcepath = os.path.join(self.autosaveTop,subdir,fileToBackUp)
+                destpath = os.path.join(self.backupTarget,subdir)
+                print "Copy {0} to {1} .".format(sourcepath, destpath)
+                # Copy file and metadata
+                shutil.copy2(sourcepath, destpath)
+        
+        
     def __init__(self, bl, whichIoc):
+        """@param bl Beamline in IT notation e.g. i13 i13-1
+        @param whichIoc IOC name eg BL13I-EA-IOC-03"""
         self.bl = bl
         self.whichIoc = whichIoc
 
-        self.autosaveTop = "/home/tdq39642/tmp/autosave-for-testing/"
+        # Key paths
+        self.autosaveTop = "/home/tdq39642/tmp/autosave-for-testing/{0}".format(self.bl)
         self.backupTop = "/home/tdq39642/tmp/autosave_backup/{0}".format(self.bl)
         
         # Name for new backup subdirectory
@@ -100,14 +131,15 @@ class AutosaveBackup:
             if not (self.whichIoc == "all"):
                 self.printUsage()
                 sys.exit()
-            
+        
+        # Make the user check details before proceeding
         print "We will back up the latest autosave files for {0}, ioc {1}".format(self.bl, self.whichIoc)
         print " from {0}".format(self.autosaveTop)
         print " to {0}".format(self.backupTarget)
         user = raw_input( "Is this right? (y/n) " )
         
+        # Drop out of not "y" or "yes"
         matches = re.match(r"^y", user)
-        
         if (matches is None):
             print "Exiting."
             sys.exit()
@@ -135,24 +167,23 @@ class AutosaveBackup:
             if ( len(self.backupFileList[onedir]) == 0):
                 print "Warning: no files found for {0}.".format(onedir)
                 
-        print "\nList of files we will back up:"
-        for subdir in self.backupFileList:
-            
-            self.createBackupSubdir(subdir)
-            
-            
-            for fileToBackUp in self.backupFileList[subdir]:
+        print "\nStarting backup..."
+        self.startBackup()
+
                 
-                sourcepath = os.path.join(self.autosaveTop,subdir,fileToBackUp)
-                destpath = os.path.join(self.backupTarget,subdir)
-                print "Copy {0} to {1} .".format(sourcepath, destpath)
-                shutil.copy2(sourcepath, destpath)
+        print "\nFinished. Backup created in {0} .".format(self.backupTarget)
     
     @staticmethod       
     def printUsage():
-        print "Usage:"
-        print "backup-autosave-files.py <bl> <ioc> [<more iocs>]"
-        print "backup-autosave-files.py <bl> all"
+        print "  "
+        print "  Back up the latest autosave files for an IOC or all IOCs on a beamline."
+        print "  We assume the latest files are those called XXX_0.sav, XXX_1.sav and XXX_2.sav without any suffix."
+        print "  Usage:"
+        print "  - backup-autosave-files.py <beamline> <ioc name>"
+        print "  - backup-autosave-files.py <beamline> all"
+        print "\n  Example:"
+        print "  - backup-autosave-files.py i13 BL13I-EA-IOC-03"
+        print "  "
         
     
 
@@ -162,8 +193,10 @@ if __name__ == "__main__":
         AutosaveBackup.printUsage()
         sys.exit()
         
+    # First argument: beamline name
     bl = sys.argv[1]
     
+    # Second argument: IOC name or "all"
     whichIoc = sys.argv[2]
     
     a = AutosaveBackup(bl, whichIoc)
