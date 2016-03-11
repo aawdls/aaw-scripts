@@ -111,8 +111,8 @@ class AutosaveBackup:
         self.whichIoc = whichIoc
 
         # Key paths
-        self.autosaveTop = "/home/tdq39642/tmp/autosave-for-testing/{0}".format(self.bl)
-        self.backupTop = "/home/tdq39642/tmp/autosave_backup/{0}".format(self.bl)
+        self.autosaveTop = "/dls_sw/{0}/epics/autosave".format(self.bl)
+        self.backupTop = "/home/tdq39642/autosave_backup/{0}".format(self.bl)
         
         # Name for new backup subdirectory
         self.newDirectory = "autosave_backup_{0}".format(time.strftime("%Y-%m-%d_%H%M%S"))
