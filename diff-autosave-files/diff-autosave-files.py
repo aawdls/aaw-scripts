@@ -44,9 +44,11 @@ class AutosaveDiffer():
     def __init__(self):
         #backupFilename = "bk_0.sav"
         #liveFilename = "live_0.sav"
-        inputFiles = [["bk_0.sav", "live_0.sav", "BL13I-MO-IOC-02 level 0"],
-        ["bk_1.sav", "live_1.sav", "BL13I-MO-IOC-02 level 1"],
-        ["bk_2.sav", "live_2.sav", "BL13I-MO-IOC-02 level 2"]]
+        inputFiles = [
+            ["bk_0.sav", "live_0.sav", "BL13I-MO-IOC-02 level 0"],
+            ["bk_1.sav", "live_1.sav", "BL13I-MO-IOC-02 level 1"],
+            ["bk_2.sav", "live_2.sav", "BL13I-MO-IOC-02 level 2"]
+            ]
         self.headFilename = "head.html"
         self.footFilename = "foot.html"
         outFilename = "out.html"
