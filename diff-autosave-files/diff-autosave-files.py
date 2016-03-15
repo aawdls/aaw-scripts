@@ -6,7 +6,11 @@ import sys, difflib
 
 class AutosaveDiffer():
     
-    def makeDiff(self, backupFilename, liveFilename):
+    def makeDiff(self, backupFilename, liveFilename, heading):
+        
+        # Heading string
+        headingString = '<h2>{0}</h2>'.format(heading)
+        
         # Lists to hold lines read from files
         backupLines = ['']
         liveLines = ['']
@@ -19,7 +23,8 @@ class AutosaveDiffer():
             
         # Generate the diff
         d = difflib.HtmlDiff()
-        diffTable = d.make_table(backupLines, liveLines, fromdesc='Backup', todesc='Live file', context=True, numlines=0)
+        diffString = d.make_table(backupLines, liveLines, fromdesc='Backup: '+backupFilename, todesc='Live file: '+liveFilename, context=True, numlines=0)
+        diffTable = [headingString, diffString]
         return diffTable
         
     def writeFile(self, outFilename, finalLines):
@@ -37,8 +42,11 @@ class AutosaveDiffer():
             self.footLines = footFile.readlines()
     
     def __init__(self):
-        backupFilename = "bk_0.sav"
-        liveFilename = "live_0.sav"
+        #backupFilename = "bk_0.sav"
+        #liveFilename = "live_0.sav"
+        inputFiles = [["bk_0.sav", "live_0.sav", "BL13I-MO-IOC-02 level 0"],
+        ["bk_1.sav", "live_1.sav", "BL13I-MO-IOC-02 level 1"],
+        ["bk_2.sav", "live_2.sav", "BL13I-MO-IOC-02 level 2"]]
         self.headFilename = "head.html"
         self.footFilename = "foot.html"
         outFilename = "out.html"
@@ -50,10 +58,12 @@ class AutosaveDiffer():
         self.readHtmlTemplate()
         
         # Generate the diff
-        diffTable = self.makeDiff(backupFilename, liveFilename)
+        diffTable = ['']
+        for [backupFilename, liveFilename, heading] in inputFiles:
+            diffTable = diffTable + self.makeDiff(backupFilename, liveFilename, heading)
         
         # Build list of lines to write
-        finalLines = self.headLines + [diffTable] + self.footLines
+        finalLines = self.headLines + diffTable + self.footLines
         self.writeFile(outFilename, finalLines)
 
         
