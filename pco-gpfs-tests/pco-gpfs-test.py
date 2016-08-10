@@ -3,9 +3,7 @@ from pkg_resources import require
 #require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
 #from cothread.catools import *
 from pcoSim import *
-import datetime
-import time
-import csv
+import datetime, time, csv, sys
 
 
 class pcoHdfTest():
@@ -87,15 +85,30 @@ class pcoHdfTest():
             debugPrint("Starting acquisition {0} of {1} at {2}".format(testIndex+1, self.parameters["numFiles"], timestamp) )
             self.startOneAcquisition()
             
-            # Wait for it to complete
+            # Wait for it to complete using a not very clever timer
             time.sleep(0.1)
-            while (self.inProgress()):
-                time.sleep(1)
-                # Drop out if we think it's stuck
-                #if (self.timedOut()):
-                    #break
+            timerIncrement = 1 #second
+            timer = 0
+            timeOut = 600 # 10 minutes
             
-            self.results.writerow([timestamp,testIndex,self.parameters["acquirePeriod"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]])
+            while (self.inProgress()):
+                time.sleep(timerIncrement)
+                
+                # Keep track of roughly how long we've waited
+                timer = timer + timerIncrement
+                # Drop out if we think it's stuck
+                if (timer > timeOut):
+                    sys.exit(self.debugPrint("Exiting because test timed out"))
+            
+            results = [timestamp,testIndex,self.parameters["acquirePeriod"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]]
+            
+            for pv in self.pvNames["performance"]:
+                results.append(caget(pv, datatype=DBR_LONG))
+            
+            for key, value in zip(self.csvColumns, results):
+                debugPrint("{0} = {1}".format(key, value))
+            
+            self.results.writerow(results)
             
             # Check for problems
             #if (self.problem()):
@@ -119,6 +132,7 @@ class pcoHdfTest():
         
         # Key PV names
         self.pvNames = self.parameters["pvNames"]
+        self.csvColumns = ["Timestamp","ID","Acquire period /s","Exposure time /s","Number of acquisitions"] + self.pvNames["performance"]
 
         # Open CSV file to store results
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -131,7 +145,8 @@ class pcoHdfTest():
         else:
             self.results = csv.writer(self.csvfile, delimiter=',')
             self.results.writerow(["PCO Test Results {0}".format(timestamp)])
-            self.results.writerow(["Timestamp","ID","Acquire period /s","Exposure time /s","Number of acquisitions"])
+            
+            self.results.writerow(self.csvColumns)
         
 #get the value (loop until the counter is 'done')
 #count = caget("BL12I-EA-DET-01:SCALER.S18", datatype=DBR_LONG )
@@ -140,10 +155,10 @@ if __name__ == "__main__":
     
     # Define test parameters
     testParams = {
-        "numImagesPerFile":   100,
+        "numImagesPerFile":   1000,
         "numFiles":           5,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.006,
+        "acquirePeriod":      0.005,
         "filePath":           "G:/i13/data/2016/cm14467-3/tmp",
         "fileName":           "filetest",
         "pvPrefix":           "TDQ39642-EA-TEST-02",
@@ -152,11 +167,24 @@ if __name__ == "__main__":
     
     # Define PV names
     testParams["pvNames"] = {
-        "acquire"      : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire",
-        "captureRbv"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":Capture_RBV",
-        "writeSpeed"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":IOSpeed",
-        "writeStatus"  : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteStatus",
-        "writeMessage" : testParams["pvPrefix"] + testParams["hdfPrefix"]+ ":WriteMessage"}
+        "acquire"       : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire",
+        "captureRbv"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":Capture_RBV",
+        "writeSpeed"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":IOSpeed",
+        "writeStatus"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteStatus",
+        "writeMessage"  : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteMessage",
+        "droppedHdf"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":DroppedArrays_RBV",
+        "performance"  : [ testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:GOODFRAME_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:MISSING_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:OUTOFARRAYS_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:INVALID_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:FRAMESTATUS_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:WAITFAULT_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:DRIVERERROR_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:CAPTUREERROR_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:POLLGETFRAME_RBV",
+                            testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:FAULT_RBV"
+                        ]
+        }
 
     # Create simulator object with these parameters
     pcoSimulator = PcoSimulator(testParams)
@@ -180,5 +208,5 @@ if __name__ == "__main__":
         
         # Begin tests
         t.runTests()
-
-    debugPrint("Tests finished")
+        
+        t.debugPrint("Tests finished")
