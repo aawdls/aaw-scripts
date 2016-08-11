@@ -43,6 +43,7 @@ class PcoSimulator():
         return returnValue
     
     def acquisitionThread(self, acquisitionTime, numAcquisitions):
+        """Simulates an acquisition. Sets busy to True until about the right amount of time has elapsed"""
         debugPrint("Started acquisition thread")
         self.busy = True
         for i in range(numAcquisitions):
@@ -52,11 +53,14 @@ class PcoSimulator():
         return
         
     def startAcquiring(self, acquireTime, numAcquisitions):
-        t = threading.Thread(target=self.acquisitionThread, args=(acquireTime, numAcquisitions))
-        listOfThreads.append(t)
-        t.start()
+        """Start an acquistion thread"""
+        if not self.isAcquiring():
+            t = threading.Thread(target=self.acquisitionThread, args=(acquireTime, numAcquisitions))
+            listOfThreads.append(t)
+            t.start()
         
     def isAcquiring(self):
+        """Return true if acquisition thread is running. Else return false"""
         return self.busy
         
     def __init__(self, testParams):
@@ -66,7 +70,7 @@ class PcoSimulator():
         self.camPrefix = self.parameters["camPrefix"]
         self.hdfPrefix = self.parameters["hdfPrefix"]
         
-        # Internal state
+        # Internal state of simulator
         self.busy = False
         self.writeSpeed = 0
         

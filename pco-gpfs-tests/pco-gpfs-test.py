@@ -19,6 +19,7 @@ class pcoHdfTest():
         return
     
     def debugPrint(self, message):
+        """Print debug output"""
         debugPrefix = "[pco test] "
         print debugPrefix, message
     
@@ -62,6 +63,7 @@ class pcoHdfTest():
         Returns true if acquisition is in progress or file is open
         """
         
+        # Read the Capture status from the HDF plugin
         if (caget(self.pvNames["captureRbv"], datatype=DBR_LONG) == 1):
             return True
         else:
@@ -82,7 +84,7 @@ class pcoHdfTest():
             
             # Start the acquisition
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            debugPrint("Starting acquisition {0} of {1} at {2}".format(testIndex+1, self.parameters["numFiles"], timestamp) )
+            self.debugPrint("Starting acquisition {0} of {1} at {2}".format(testIndex+1, self.parameters["numFiles"], timestamp) )
             self.startOneAcquisition()
             
             # Wait for it to complete using a not very clever timer
@@ -100,17 +102,20 @@ class pcoHdfTest():
                 if (timer > timeOut):
                     sys.exit(self.debugPrint("Exiting because test timed out"))
             
-            results = [timestamp,testIndex,self.parameters["acquirePeriod"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]]
-            
-            for pv in self.pvNames["performance"]:
+            # Get the numbers we want to record as results for this test and make a list
+            results = [timestamp,testIndex,self.parameters["exposureTime"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]]
+            # including the Performance PVs from the PCO 
+            for pv in self.pvsToRecord:
                 results.append(caget(pv, datatype=DBR_LONG))
             
+            # Print the results to the console so you can see them if you're watching the tests go
             for key, value in zip(self.csvColumns, results):
-                debugPrint("{0} = {1}".format(key, value))
+                self.debugPrint("{0} = {1}".format(key, value))
             
+            # Write results to a new row in the CSV file
             self.results.writerow(results)
             
-            # Check for problems
+            # Check for problems in the IOC
             #if (self.problem()):
                 # Handle error
                 # If recoverable, recover, and continue with the next acquisition
@@ -132,17 +137,19 @@ class pcoHdfTest():
         
         # Key PV names
         self.pvNames = self.parameters["pvNames"]
-        self.csvColumns = ["Timestamp","ID","Acquire period /s","Exposure time /s","Number of acquisitions"] + self.pvNames["performance"]
-
+        self.pvsToRecord = self.pvNames["performance"] + [self.pvNames["filenmaeRbv"], self.pvNames["numCapturedRbv"], self.pvNames["writeTime"], self.pvNames["writeSpeed"], self.pvNames["writeStatus"], self.pvNames["writeMessage"], self.pvNames["droppedHdf"]]
+        self.csvColumns = ["Timestamp","ID","Exposure time /s","Acquire period /s","Number of acquisitions"] + self.pvsToRecord
         # Open CSV file to store results
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
         outputFilename = "output/pco_test_results_{0}.csv".format(timestamp)
         try:
             self.csvfile = open(outputFilename, 'wb')
         except:
-            debugPrint("Couldn't open file {0}".format(outputFilename))
+            self.debugPrint("Couldn't open file {0}".format(outputFilename))
             raise
         else:
+            
+            # Write header for CSV file
             self.results = csv.writer(self.csvfile, delimiter=',')
             self.results.writerow(["PCO Test Results {0}".format(timestamp)])
             
@@ -169,6 +176,9 @@ if __name__ == "__main__":
     testParams["pvNames"] = {
         "acquire"       : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire",
         "captureRbv"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":Capture_RBV",
+        "numCapturedRbv": testParams["pvPrefix"] + testParams["hdfPrefix"] + ":NumCaptured_RBV",
+        "filenmaeRbv"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":FullFileName_RBV",
+        "writeTime"     : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":RunTime",
         "writeSpeed"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":IOSpeed",
         "writeStatus"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteStatus",
         "writeMessage"  : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteMessage",
