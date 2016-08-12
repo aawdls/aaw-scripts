@@ -1,9 +1,10 @@
 #!/dls_sw/prod/tools/RHEL6-x86_64/defaults/bin/dls-python
 from pkg_resources import require
-#require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
-#from cothread.catools import *
-from pcoSim import *
-import datetime, time, csv, sys
+require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
+from cothread.catools import *
+from cothread import Sleep
+#from pcoSim import *
+import datetime, time, csv, sys, os
 
 
 class pcoHdfTest():
@@ -17,7 +18,26 @@ class pcoHdfTest():
         if (self.csvfile):
             self.csvfile.close()
         return
-    
+  
+    def checkFiles(self):
+        time.sleep(60)
+        totalFiles = 0
+        missingFiles = []
+        for file in self.fileNames:
+            linuxFile = '/dls' + file.split(':')[1].replace("\\","/")
+            try:
+                osStat = os.stat(linuxFile)
+                print "SIZE: ", osStat.st_size < 10e6 * self.parameters["numImagesPerFile"]
+                if osStat.st_size < 10e6 * self.parameters["numImagesPerFile"]:
+                    totalFiles += 1
+            except:
+                missingFiles.append(linuxFile)
+                print "EXCEPTION : ", sys.exc_info()[0]
+        print "TOTAL FILES: ", totalFiles
+        print "MISSING: ", missingFiles
+        print "DIR: ", linuxFile
+        
+        
     def debugPrint(self, message):
         """Print debug output"""
         debugPrefix = "[pco test] "
@@ -54,9 +74,21 @@ class pcoHdfTest():
         """
         Start a single file acquisition
         """
+        startCapture = caget(self.pvNames["capture"], datatype=DBR_LONG)
+        startAcquire = caget(self.pvNames["acquire"], datatype=DBR_LONG)   
+        self.debugPrint("CAPTURE: " + str(startCapture) + ", ACQUIRE: " + str(startAcquire))
         
         self.debugPrint("Start acquisition")
-        caput(self.pvNames["acquire"],        1,      wait=True, timeout=5)
+        Sleep(1)
+        #time.sleep(1)
+        caput(self.pvNames["capture"],        1,      wait=False, timeout=0)
+        Sleep(5)
+        #time.sleep(1)
+        caput(self.pvNames["acquire"],        1,      wait=False, timeout=0)
+        
+        startCapture = caget(self.pvNames["capture"], datatype=DBR_LONG)
+        startAcquire = caget(self.pvNames["acquire"], datatype=DBR_LONG)   
+        self.debugPrint("CAPTURE: " + str(startCapture) + ", ACQUIRE: " + str(startAcquire))
         
     def inProgress(self):
         """
@@ -64,7 +96,9 @@ class pcoHdfTest():
         """
         
         # Read the Capture status from the HDF plugin
-        if (caget(self.pvNames["captureRbv"], datatype=DBR_LONG) == 1):
+        isCapturing = caget(self.pvNames["captureRbv"], datatype=DBR_LONG)
+        #self.debugPrint("{0} = {1}".format( self.pvNames["captureRbv"], isCapturing))
+        if (isCapturing == 1):
             return True
         else:
             return False
@@ -88,13 +122,13 @@ class pcoHdfTest():
             self.startOneAcquisition()
             
             # Wait for it to complete using a not very clever timer
-            time.sleep(0.1)
+            Sleep(1)
             timerIncrement = 1 #second
             timer = 0
             timeOut = 600 # 10 minutes
             
             while (self.inProgress()):
-                time.sleep(timerIncrement)
+                Sleep(timerIncrement)
                 
                 # Keep track of roughly how long we've waited
                 timer = timer + timerIncrement
@@ -106,7 +140,13 @@ class pcoHdfTest():
             results = [timestamp,testIndex,self.parameters["exposureTime"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]]
             # including the Performance PVs from the PCO 
             for pv in self.pvsToRecord:
-                results.append(caget(pv, datatype=DBR_LONG))
+                if (pv in [self.pvNames["filenameRbv"], self.pvNames["writeMessage"]]):
+                    myDataType=DBR_CHAR_STR
+                    if (pv in [self.pvNames["filenameRbv"]]):
+                        self.fileNames.append(caget(pv, datatype=myDataType))
+                else:
+                    myDataType=DBR_LONG
+                results.append(caget(pv, datatype=myDataType))
             
             # Print the results to the console so you can see them if you're watching the tests go
             for key, value in zip(self.csvColumns, results):
@@ -123,6 +163,10 @@ class pcoHdfTest():
                 
             # Get diagnostics for this acquisition
             self.getStats()
+            Sleep(1)
+            
+        if (self.csvfile):
+            self.csvfile.close()
 
     def __init__(self, testParams):
         """
@@ -134,10 +178,11 @@ class pcoHdfTest():
         self.pvPrefix = self.parameters["pvPrefix"]
         self.camPrefix = self.parameters["camPrefix"]
         self.hdfPrefix = self.parameters["hdfPrefix"]
+        self.fileNames = []
         
         # Key PV names
         self.pvNames = self.parameters["pvNames"]
-        self.pvsToRecord = self.pvNames["performance"] + [self.pvNames["filenmaeRbv"], self.pvNames["numCapturedRbv"], self.pvNames["writeTime"], self.pvNames["writeSpeed"], self.pvNames["writeStatus"], self.pvNames["writeMessage"], self.pvNames["droppedHdf"]]
+        self.pvsToRecord = self.pvNames["performance"] + [self.pvNames["filenameRbv"], self.pvNames["numCapturedRbv"], self.pvNames["writeTime"], self.pvNames["writeSpeed"], self.pvNames["writeStatus"], self.pvNames["writeMessage"], self.pvNames["droppedHdf"]]
         self.csvColumns = ["Timestamp","ID","Exposure time /s","Acquire period /s","Number of acquisitions"] + self.pvsToRecord
         # Open CSV file to store results
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -154,6 +199,8 @@ class pcoHdfTest():
             self.results.writerow(["PCO Test Results {0}".format(timestamp)])
             
             self.results.writerow(self.csvColumns)
+            
+
         
 #get the value (loop until the counter is 'done')
 #count = caget("BL12I-EA-DET-01:SCALER.S18", datatype=DBR_LONG )
@@ -162,22 +209,23 @@ if __name__ == "__main__":
     
     # Define test parameters
     testParams = {
-        "numImagesPerFile":   1000,
-        "numFiles":           5,
+        "numImagesPerFile":   100,
+        "numFiles":           2,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.005,
-        "filePath":           "G:/i13/data/2016/cm14467-3/tmp",
+        "acquirePeriod":      0.01,
+        "filePath":           "D:\\i13\\data\\2016\\cm14467-3\\tmp",
         "fileName":           "filetest",
-        "pvPrefix":           "TDQ39642-EA-TEST-02",
+        "pvPrefix":           "BL13I-EA-DET-01",
         "camPrefix":          ":CAM",
         "hdfPrefix":          ":HDF5" }
     
     # Define PV names
     testParams["pvNames"] = {
-        "acquire"       : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire",
+        "acquire"       : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire", 
+        "capture"       : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":Capture",
         "captureRbv"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":Capture_RBV",
         "numCapturedRbv": testParams["pvPrefix"] + testParams["hdfPrefix"] + ":NumCaptured_RBV",
-        "filenmaeRbv"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":FullFileName_RBV",
+        "filenameRbv"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":FullFileName_RBV",
         "writeTime"     : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":RunTime",
         "writeSpeed"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":IOSpeed",
         "writeStatus"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteStatus",
@@ -197,15 +245,15 @@ if __name__ == "__main__":
         }
 
     # Create simulator object with these parameters
-    pcoSimulator = PcoSimulator(testParams)
+#    pcoSimulator = PcoSimulator(testParams)
     
-    def caput(*args, **kwargs):
-        """Wrapper for simulator's caput to make it look like the real thing"""
-        return pcoSimulator.caput(*args, **kwargs)
+#    def caput(*args, **kwargs):
+#        """Wrapper for simulator's caput to make it look like the real thing"""
+#        return pcoSimulator.caput(*args, **kwargs)
         
-    def caget(*args, **kwargs):
-        """Wrapper for simulator's caput to make it look like the real thing"""
-        return pcoSimulator.caget(*args, **kwargs)
+#    def caget(*args, **kwargs):
+#        """Wrapper for simulator's caput to make it look like the real thing"""
+#        return pcoSimulator.caget(*args, **kwargs)
         
     # Create test object
     with pcoHdfTest(testParams) as t:
@@ -218,5 +266,8 @@ if __name__ == "__main__":
         
         # Begin tests
         t.runTests()
+        
+        #check the written files
+        t.checkFiles()
         
         t.debugPrint("Tests finished")
