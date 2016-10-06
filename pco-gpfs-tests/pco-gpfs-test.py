@@ -208,16 +208,56 @@ class pcoHdfTest():
 if __name__ == "__main__":
     
     # Define test parameters
-    testParams = {
-        "numImagesPerFile":   100,
-        "numFiles":           2,
+    # I13, netApp
+    testParamsI13N = {
+        "numImagesPerFile":   30000,
+        "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.01,
-        "filePath":           "D:\\i13\\data\\2016\\cm14467-3\\tmp",
+        "filePath":           "D:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL13I-EA-DET-01",
         "camPrefix":          ":CAM",
         "hdfPrefix":          ":HDF5" }
+    # I12, NetApp
+    testParamsI12N = {
+        "numImagesPerFile":   30000,
+        "numFiles":           1,
+        "exposureTime":       0.005,
+        "acquirePeriod":      0.01,
+        "filePath":           "D:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
+        "fileName":           "filetest",
+        "pvPrefix":           "BL12I-EA-DET-02",
+        "camPrefix":          ":CAM",
+        "hdfPrefix":          ":HDF" }
+    # I13, GPFS
+    testParamsI13G = {
+        "numImagesPerFile":   30000,
+        "numFiles":           1,
+        "exposureTime":       0.005,
+        "acquirePeriod":      0.01,
+        "filePath":           "T:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
+        "fileName":           "filetest",
+        "pvPrefix":           "BL13I-EA-DET-01",
+        "camPrefix":          ":CAM",
+        "hdfPrefix":          ":HDF5" }
+    # I12, GPFS
+    testParamsI12G = {
+        "numImagesPerFile":   30000,
+        "numFiles":           1,
+        "exposureTime":       0.005,
+        "acquirePeriod":      0.01,
+        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
+        "fileName":           "filetest",
+        "pvPrefix":           "BL12I-EA-DET-12",
+        "camPrefix":          ":CAM",
+        "hdfPrefix":          ":HDF" }
+    
+    # Select parameters for different tests
+    testParams = testParamsI13N
+    #testParams = testParamsI12N
+    #testParams = testParamsI13G
+    #testParams = testParamsI12G
     
     # Define PV names
     testParams["pvNames"] = {
@@ -255,6 +295,7 @@ if __name__ == "__main__":
 #        """Wrapper for simulator's caput to make it look like the real thing"""
 #        return pcoSimulator.caget(*args, **kwargs)
         
+
     # Create test object
     with pcoHdfTest(testParams) as t:
     
@@ -268,6 +309,6 @@ if __name__ == "__main__":
         t.runTests()
         
         #check the written files
-        t.checkFiles()
+        #t.checkFiles()
         
         t.debugPrint("Tests finished")
