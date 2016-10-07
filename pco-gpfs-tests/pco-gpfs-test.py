@@ -58,6 +58,7 @@ class pcoHdfTest():
         caput(self.pvPrefix + self.camPrefix + ":PIX_RATE",           1,          wait=True, timeout=5)
         caput(self.pvPrefix + self.camPrefix + ":NumImages",          self.parameters["numImagesPerFile"],  wait=True, timeout=5)
         caput(self.pvPrefix + self.camPrefix + ":ImageMode",          1,          wait=True, timeout=5) # Multiple
+        caput(self.pvPrefix + self.camPrefix + ":TriggerMode",        0,          wait=True, timeout=5) # Multiple
 
         # Configure HDF plugin
         self.debugPrint("(2/2) configure HDF plugin")
@@ -69,6 +70,7 @@ class pcoHdfTest():
         caput(self.pvPrefix + self.hdfPrefix + ":LazyOpen",          1,           wait=True, timeout=5)
         caput(self.pvPrefix + self.hdfPrefix + ":AutoIncrement",     1,           wait=True, timeout=5)
         caput(self.pvPrefix + self.hdfPrefix + ":NumCapture",        self.parameters["numImagesPerFile"],   wait=True, timeout=5)
+        caput(self.pvPrefix + self.hdfPrefix + ":DroppedArrays",     0,           wait=True, timeout=5)
 
     def startOneAcquisition(self):
         """
@@ -168,7 +170,7 @@ class pcoHdfTest():
         if (self.csvfile):
             self.csvfile.close()
 
-    def __init__(self, testParams):
+    def __init__(self, testParams, testName):
         """
         Set up a test; wait for user input to run
         """
@@ -186,7 +188,7 @@ class pcoHdfTest():
         self.csvColumns = ["Timestamp","ID","Exposure time /s","Acquire period /s","Number of acquisitions"] + self.pvsToRecord
         # Open CSV file to store results
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        outputFilename = "output/pco_test_results_{0}.csv".format(timestamp)
+        outputFilename = "output/pco_test_results_{0}_{1}.csv".format(testName, timestamp)
         try:
             self.csvfile = open(outputFilename, 'wb')
         except:
@@ -213,7 +215,7 @@ if __name__ == "__main__":
         "numImagesPerFile":   30000,
         "numFiles":           1,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.01,
+        "acquirePeriod":      0.0051,
         "filePath":           "D:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL13I-EA-DET-01",
@@ -224,7 +226,7 @@ if __name__ == "__main__":
         "numImagesPerFile":   30000,
         "numFiles":           1,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.01,
+        "acquirePeriod":      0.0051,
         "filePath":           "D:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-02",
@@ -235,7 +237,7 @@ if __name__ == "__main__":
         "numImagesPerFile":   30000,
         "numFiles":           1,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.01,
+        "acquirePeriod":      0.0051,
         "filePath":           "T:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL13I-EA-DET-01",
@@ -246,7 +248,7 @@ if __name__ == "__main__":
         "numImagesPerFile":   30000,
         "numFiles":           1,
         "exposureTime":       0.005,
-        "acquirePeriod":      0.01,
+        "acquirePeriod":      0.0051,
         "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-12",
@@ -254,7 +256,15 @@ if __name__ == "__main__":
         "hdfPrefix":          ":HDF" }
     
     # Select parameters for different tests
-    testParams = testParamsI13N
+    if sys.argv[1] == "I13N":
+        testParams = testParamsI13N
+    elif sys.argv[1] == "I13G":
+        testParams = testParamsI13G 
+    elif sys.argv[1] == "I12N":
+        testParams = testParamsI12N 
+    elif sys.argv[1] == "I12G":
+        testParams = testParamsI12G      
+
     #testParams = testParamsI12N
     #testParams = testParamsI13G
     #testParams = testParamsI12G
@@ -297,7 +307,7 @@ if __name__ == "__main__":
         
 
     # Create test object
-    with pcoHdfTest(testParams) as t:
+    with pcoHdfTest(testParams, sys.argv[1]) as t:
     
         # Configure the camera IOC
         t.setupIoc()
