@@ -98,12 +98,14 @@ class pcoHdfTest():
         """
         
         # Read the Capture status from the HDF plugin
-        isCapturing = caget(self.pvNames["captureRbv"], datatype=DBR_LONG)
+        #isCapturing = caget(self.pvNames["captureRbv"], datatype=DBR_LONG)
         #self.debugPrint("{0} = {1}".format( self.pvNames["captureRbv"], isCapturing))
-        if (isCapturing == 1):
-            return True
-        else:
+        hdfQueue = caget(self.pvNames["hdfQueue"], datatype=DBR_LONG)
+        camAcquiring = caget(self.pvNames["acquire"], datatype=DBR_LONG)
+        if (hdfQueue == 0 and camAcquiring == 0):
             return False
+        else:
+            return True
         
         
     def getStats(self):
@@ -137,6 +139,9 @@ class pcoHdfTest():
                 # Drop out if we think it's stuck
                 if (timer > timeOut):
                     sys.exit(self.debugPrint("Exiting because test timed out"))
+            
+            # Close the file
+            caput(self.pvNames["capture"], 0)
             
             # Get the numbers we want to record as results for this test and make a list
             results = [timestamp,testIndex,self.parameters["exposureTime"],self.parameters["acquirePeriod"],self.parameters["numImagesPerFile"]]
@@ -251,6 +256,17 @@ if __name__ == "__main__":
         "acquirePeriod":      0.0051,
         "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
+        "pvPrefix":           "BL12I-EA-DET-02",
+        "camPrefix":          ":CAM",
+        "hdfPrefix":          ":HDF" }
+    # I12, GPFS
+    testParamsI12G2 = {
+        "numImagesPerFile":   30000,
+        "numFiles":           1,
+        "exposureTime":       0.005,
+        "acquirePeriod":      0.0051,
+        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
+        "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-12",
         "camPrefix":          ":CAM",
         "hdfPrefix":          ":HDF" }
@@ -264,6 +280,8 @@ if __name__ == "__main__":
         testParams = testParamsI12N 
     elif sys.argv[1] == "I12G":
         testParams = testParamsI12G      
+    elif sys.argv[1] == "I12G2":
+        testParams = testParamsI12G2      
 
     #testParams = testParamsI12N
     #testParams = testParamsI13G
@@ -281,6 +299,7 @@ if __name__ == "__main__":
         "writeStatus"   : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteStatus",
         "writeMessage"  : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":WriteMessage",
         "droppedHdf"    : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":DroppedArrays_RBV",
+        "hdfQueue"      : testParams["pvPrefix"] + testParams["hdfPrefix"] + ":QueueUse",
         "performance"  : [ testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:GOODFRAME_RBV",
                             testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:MISSING_RBV",
                             testParams["pvPrefix"] + testParams["camPrefix"] + ":PERF:CNT:OUTOFARRAYS_RBV",
