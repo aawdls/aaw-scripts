@@ -7,6 +7,17 @@ from cothread import Sleep
 import datetime, time, csv, sys, os, sched
 from pco_gpfs_test import pcoHdfTest
 
+"""
+    Schedule a PCO GPFS/NetApp file writing test at a regular interval over a specified duration on I12 or I13.
+    Requires pco_gpfs_test.py which supplies the GPFS test class.
+    This script will remain running until the last scheduled test is completed.
+    
+    Usage: ./pco_gpfs_test_scheduled.py [I13N | I13G | I12N \ I12G]
+    where N denotes write to NetApp, G denotes write to GPFS
+    
+    Modify the below variables test_duration and test_interval beforehand to set when the tests are run.
+"""
+
 if __name__=="__main__":
     
     # Define test parameters
@@ -78,10 +89,6 @@ if __name__=="__main__":
     elif sys.argv[1] == "I12G2":
         testParams = testParamsI12G2      
 
-    #testParams = testParamsI12N
-    #testParams = testParamsI13G
-    #testParams = testParamsI12G
-    
     # Define PV names
     testParams["pvNames"] = {
         "acquire"       : testParams["pvPrefix"] + testParams["camPrefix"] + ":Acquire", 
@@ -108,7 +115,7 @@ if __name__=="__main__":
                         ]
         }
         
-    # Print the time
+    # Format the elapsed time
     def elapsed_time():
         total_secs = (time.time() - begin)
         hours = int(round(total_secs / 60 / 60))
@@ -118,46 +125,42 @@ if __name__=="__main__":
         return "{0}h {1}m {2}s".format(hours, mins_left_over, secs_left_over)
         
     # This function runs a test - we'll pass it to the scheduler
+    # to be executed at the right time
     def runATest ():
 
         # Create test object
         with pcoHdfTest(testParams, sys.argv[1]) as t:
         
+            # Logging info
             t.debugPrint("About to run test scheduled at "+elapsed_time())
+            
             # Configure the camera IOC
             t.setupIoc()
             
-            # Wait for user to confirm start
-    #        throwAway = raw_input("Ready to run tests. Hit return to start:")
-            
-            # Begin tests
+            # Begin this test
             t.runTests()
             
-            #check the written files
-            #t.checkFiles()
-            
-    #        t.debugPrint("Tests finished")
+            # Logging info
             t.debugPrint("Completed test at "+elapsed_time()+", waiting until it's time to start the next one.")
-
-    #runATest()
 
     # Set up the scheduler
     begin = time.time()
-        
     s = sched.scheduler(time.time, time.sleep)
 
+    # Define times
     minute = 60
     half_hour = 30 * minute
     hour = 2 * half_hour
+    
+    # Run tests over 24 hours
     test_duration = int(round(24 * hour))
-    #test_duration = int(round(10 * minute))
+    # Run a test every half hour
     test_interval = int(round(half_hour))
-    #test_interval = int(round(2 * minute))
 
+    # Prepare schedule of tests 
     for delay in xrange (0, test_duration, test_interval):
         print "Schedule delay of", delay, "s"
         s.enter(delay, 1, runATest, ())
 
-    #s.enter(5, 1, print_time, ())
+    # Start the schedule
     s.run()
-    print time.time()
