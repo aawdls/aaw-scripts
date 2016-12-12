@@ -4,7 +4,7 @@ require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
 from cothread.catools import *
 from cothread import Sleep
 #from pcoSim import *
-import datetime, time, csv, sys, os, sched
+import datetime, time, csv, sys, os, sched, math
 from pco_gpfs_test import pcoHdfTest
 
 """
@@ -118,9 +118,9 @@ if __name__=="__main__":
     # Format the elapsed time
     def elapsed_time():
         total_secs = (time.time() - begin)
-        hours = int(round(total_secs / 60 / 60))
-        mins_left_over = int(round((total_secs % (60 * 60)) / 60))
-        secs_left_over = int(round((total_secs % 60)))
+        hours = int(math.floor(total_secs / 60 / 60))
+        mins_left_over = int(math.floor((total_secs % (60 * 60)) / 60))
+        secs_left_over = int(math.floor((total_secs % 60)))
         
         return "{0}h {1}m {2}s".format(hours, mins_left_over, secs_left_over)
         
