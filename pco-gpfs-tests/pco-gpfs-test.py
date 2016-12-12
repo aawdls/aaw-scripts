@@ -4,7 +4,7 @@ require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
 from cothread.catools import *
 from cothread import Sleep
 #from pcoSim import *
-import datetime, time, csv, sys, os
+import datetime, time, csv, sys, os, numpy
 
 
 class pcoHdfTest():
@@ -122,6 +122,7 @@ class pcoHdfTest():
             
             # Start the acquisition
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            fileNameTimestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
             self.debugPrint("Starting acquisition {0} of {1} at {2}".format(testIndex+1, self.parameters["numFiles"], timestamp) )
             self.startOneAcquisition()
             
@@ -130,12 +131,22 @@ class pcoHdfTest():
             timerIncrement = 1 #second
             timer = 0
             timeOut = 600 # 10 minutes
+            hdfQueue = []
+
+            # Create the file to store the hdf queue data
+            hdfQueueFileName = "hdfQueue_{0}".format(fileNameTimestamp)
+            hdfQueueFile = open(hdfQueueFileName, "w")
             
             while (self.inProgress()):
                 Sleep(timerIncrement)
                 
                 # Keep track of roughly how long we've waited
                 timer = timer + timerIncrement
+
+                # Get the queue size
+                hdfQueue.append(caget(self.pvNames["hdfQueue"],
+                    datatype=DBR_LONG))
+
                 # Drop out if we think it's stuck
                 if (timer > timeOut):
                     sys.exit(self.debugPrint("Exiting because test timed out"))
@@ -162,6 +173,10 @@ class pcoHdfTest():
             # Write results to a new row in the CSV file
             self.results.writerow(results)
             
+            # Write the hdf Queue use and close the file
+            numpy.save(hdfQueueFile, hdfQueue)
+            hdfQueueFile.close()
+
             # Check for problems in the IOC
             #if (self.problem()):
                 # Handle error
@@ -206,6 +221,11 @@ class pcoHdfTest():
             self.results.writerow(["PCO Test Results {0}".format(timestamp)])
             
             self.results.writerow(self.csvColumns)
+        # Create a new directory to store queue fill status data
+        hdfQueueDir = "hdf_queue_data_{0}_{1}".format(testName,
+            timestamp
+        if not os.path.exists(hdfQueueDir):
+            os.makedirs(hdfQueueDir)
             
 
         
