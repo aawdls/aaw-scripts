@@ -222,8 +222,7 @@ class pcoHdfTest():
             
             self.results.writerow(self.csvColumns)
         # Create a new directory to store queue fill status data
-        hdfQueueDir = "hdf_queue_data_{0}_{1}".format(testName,
-            timestamp
+        hdfQueueDir = "hdf_queue_data_{0}_{1}".format(testName, timestamp)
         if not os.path.exists(hdfQueueDir):
             os.makedirs(hdfQueueDir)
             
