@@ -141,8 +141,8 @@ class pcoHdfTest():
                 timer = timer + timerIncrement
 
                 # Get the queue size
-                hdfQueue.append(caget(self.pvNames["hdfQueue"],
-                    datatype=DBR_LONG))
+                hdfQueue.append(int(caget(self.pvNames["hdfQueue"],
+                    datatype=DBR_LONG)))
 
                 # Drop out if we think it's stuck
                 if (timer > timeOut):

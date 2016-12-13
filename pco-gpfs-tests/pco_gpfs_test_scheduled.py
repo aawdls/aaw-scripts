@@ -27,7 +27,7 @@ if __name__=="__main__":
         "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.0051,
-        "filePath":           "D:\\i13\\data\\2016\\cm14467-4\\raw\\stress-test",
+        "filePath":           "D:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL13I-EA-DET-01",
         "camPrefix":          ":CAM",
@@ -38,7 +38,7 @@ if __name__=="__main__":
         "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.0051,
-        "filePath":           "D:\\i12\\data\\2016\\cm14465-4\\raw\\stress-test",
+        "filePath":           "D:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-02",
         "camPrefix":          ":CAM",
@@ -49,7 +49,7 @@ if __name__=="__main__":
         "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.0051,
-        "filePath":           "T:\\i13\\data\\2016\\cm14467-4\\raw\\stress-test",
+        "filePath":           "T:\\i13\\data\\2016\\cm14467-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL13I-EA-DET-01",
         "camPrefix":          ":CAM",
@@ -60,7 +60,7 @@ if __name__=="__main__":
         "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.0051,
-        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\raw\\stress-test",
+        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-02",
         "camPrefix":          ":CAM",
@@ -71,7 +71,7 @@ if __name__=="__main__":
         "numFiles":           1,
         "exposureTime":       0.005,
         "acquirePeriod":      0.0051,
-        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\raw\\stress-test",
+        "filePath":           "T:\\i12\\data\\2016\\cm14465-4\\tmp\\stress-test",
         "fileName":           "filetest",
         "pvPrefix":           "BL12I-EA-DET-12",
         "camPrefix":          ":CAM",
@@ -122,14 +122,11 @@ if __name__=="__main__":
         mins_left_over = int(math.floor((total_secs % (60 * 60)) / 60))
         secs_left_over = int(math.floor((total_secs % 60)))
         
-        return "{0}h {1}m {2}s".format(hours, mins_left_over, secs_left_over)
+        return "{0}h_{1}m_{2}s".format(hours, mins_left_over, secs_left_over)
         
     # This function runs a test - we'll pass it to the scheduler
     # to be executed at the right time
     def runATest ():
-
-        # Prepare for test
-        testName = sys.argv[1]
         
         # Create test object
         with pcoHdfTest(testParams, testName) as t:
@@ -145,18 +142,21 @@ if __name__=="__main__":
             t.runTests()
             
             # Prepare HDF queue data file
-            hdfQueueData = {startTime: t.getHdfQueue()}
+            hdfQueueData = {startTime: t.getHdfQueueUse()}
             
             # Create the file to store the hdf queue data
-            hdfQueueFileName = "hdfQueue_{0}".format(fileNameTimestamp)
+            hdfQueueFileName = "hdfQueue_{0}".format(startTime)
             hdfQueueFilePath = os.path.join(hdfQueueDir, hdfQueueFileName)
             hdfQueueFile = open(hdfQueueFilePath, "w")
-            numpy.save(hdfQueueFile, hdfQueue)
+            numpy.save(hdfQueueFile, hdfQueueData)
             hdfQueueFile.close()
             
             # Logging info
             t.debugPrint("Completed test at "+elapsed_time()+", waiting until it's time to start the next one.")
 
+    # Prepare for test
+    testName = sys.argv[1]
+    
     # Set up the scheduler
     begin = time.time()
     s = sched.scheduler(time.time, time.sleep)
@@ -167,9 +167,11 @@ if __name__=="__main__":
     hour = 2 * half_hour
     
     # Run tests over 24 hours
-    test_duration = int(round(24 * hour))
+    test_duration = int(round(23 * hour))
+    #test_duration = int(round(10 * minute))
     # Run a test every half hour
     test_interval = int(round(half_hour))
+    #test_interval = int(round(2 * minute))
 
     # Prepare schedule of tests 
     for delay in xrange (0, test_duration, test_interval):
@@ -177,7 +179,8 @@ if __name__=="__main__":
         s.enter(delay, 1, runATest, ())
 
     # Create a new directory to store queue fill status data
-    timestamp = begin.strftime("%Y-%m-%d_%H%M%S")
+    begints = time.gmtime(begin)
+    timestamp = time.strftime("%Y-%m-%d_%H%M%S", begints)
     hdfQueueDir = os.path.join("output", "hdf_queue_data_{0}_{1}".format(testName, timestamp))
     if not os.path.exists(hdfQueueDir):
         os.makedirs(hdfQueueDir)
