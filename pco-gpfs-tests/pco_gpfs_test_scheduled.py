@@ -4,7 +4,7 @@ require('cothread') #http://cothread.readthedocs.io/en/latest/catools.html
 from cothread.catools import *
 from cothread import Sleep
 #from pcoSim import *
-import datetime, time, csv, sys, os, sched, math
+import datetime, time, csv, sys, os, sched, math, numpy
 from pco_gpfs_test import pcoHdfTest
 
 """
@@ -128,17 +128,31 @@ if __name__=="__main__":
     # to be executed at the right time
     def runATest ():
 
+        # Prepare for test
+        testName = sys.argv[1]
+        
         # Create test object
-        with pcoHdfTest(testParams, sys.argv[1]) as t:
+        with pcoHdfTest(testParams, testName) as t:
         
             # Logging info
-            t.debugPrint("About to run test scheduled at "+elapsed_time())
+            startTime = elapsed_time()
+            t.debugPrint("About to run test scheduled at "+startTime)
             
             # Configure the camera IOC
             t.setupIoc()
             
             # Begin this test
             t.runTests()
+            
+            # Prepare HDF queue data file
+            hdfQueueData = {startTime: t.getHdfQueue()}
+            
+            # Create the file to store the hdf queue data
+            hdfQueueFileName = "hdfQueue_{0}".format(fileNameTimestamp)
+            hdfQueueFilePath = os.path.join(hdfQueueDir, hdfQueueFileName)
+            hdfQueueFile = open(hdfQueueFilePath, "w")
+            numpy.save(hdfQueueFile, hdfQueue)
+            hdfQueueFile.close()
             
             # Logging info
             t.debugPrint("Completed test at "+elapsed_time()+", waiting until it's time to start the next one.")
@@ -161,6 +175,12 @@ if __name__=="__main__":
     for delay in xrange (0, test_duration, test_interval):
         print "Schedule delay of", delay, "s"
         s.enter(delay, 1, runATest, ())
+
+    # Create a new directory to store queue fill status data
+    timestamp = begin.strftime("%Y-%m-%d_%H%M%S")
+    hdfQueueDir = os.path.join("output", "hdf_queue_data_{0}_{1}".format(testName, timestamp))
+    if not os.path.exists(hdfQueueDir):
+        os.makedirs(hdfQueueDir)
 
     # Start the schedule
     s.run()

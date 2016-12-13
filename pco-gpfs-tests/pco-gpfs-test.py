@@ -113,6 +113,7 @@ class pcoHdfTest():
         Grab the diagnostics we need 
         """
         # Write time, write speed, dropped frames, successful frames, total faults, write errors
+        # << This is done inline at the moment >>
         
     def runTests(self):
         """
@@ -132,10 +133,6 @@ class pcoHdfTest():
             timer = 0
             timeOut = 600 # 10 minutes
             hdfQueue = []
-
-            # Create the file to store the hdf queue data
-            hdfQueueFileName = "hdfQueue_{0}".format(fileNameTimestamp)
-            hdfQueueFile = open(hdfQueueFileName, "w")
             
             while (self.inProgress()):
                 Sleep(timerIncrement)
@@ -174,8 +171,9 @@ class pcoHdfTest():
             self.results.writerow(results)
             
             # Write the hdf Queue use and close the file
-            numpy.save(hdfQueueFile, hdfQueue)
-            hdfQueueFile.close()
+            #numpy.save(hdfQueueFile, hdfQueue)
+            #hdfQueueFile.close()
+            self.hdfQueue = hdfQueue
 
             # Check for problems in the IOC
             #if (self.problem()):
@@ -190,6 +188,9 @@ class pcoHdfTest():
         if (self.csvfile):
             self.csvfile.close()
 
+    def getHdfQueueUse(self):
+        return self.hdfQueue
+    
     def __init__(self, testParams, testName):
         """
         Set up a test; wait for user input to run
@@ -201,6 +202,7 @@ class pcoHdfTest():
         self.camPrefix = self.parameters["camPrefix"]
         self.hdfPrefix = self.parameters["hdfPrefix"]
         self.fileNames = []
+        self.hdfQueue = []
         
         # Key PV names
         self.pvNames = self.parameters["pvNames"]
@@ -221,10 +223,7 @@ class pcoHdfTest():
             self.results.writerow(["PCO Test Results {0}".format(timestamp)])
             
             self.results.writerow(self.csvColumns)
-        # Create a new directory to store queue fill status data
-        hdfQueueDir = "hdf_queue_data_{0}_{1}".format(testName, timestamp)
-        if not os.path.exists(hdfQueueDir):
-            os.makedirs(hdfQueueDir)
+
             
 
         
