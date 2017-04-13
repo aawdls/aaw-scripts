@@ -1,0 +1,78 @@
+# RELEASE Location of external products
+# Run "gnumake clean uninstall install" in the application
+# top directory each time this file is changed.
+#
+# NOTE: The build does not check dependancies on files
+# external to this application. Thus you should run
+# "gnumake clean uninstall install" in the top directory
+# each time EPICS_BASE, SNCSEQ, or any other external
+# module defined in the RELEASE file is rebuilt.
+
+TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
+PROD_IOCS=/dls_sw/prod/R3.14.12.3/ioc
+WORK_IOCS=/dls_sw/work/R3.14.12.3/ioc
+BUILDER_IOCS=/dls_sw/work/R3.14.12.3/support/BL13I-BUILDER/iocs
+WORK_SUPPORT=/dls_sw/work/R3.14.12.3/support
+PROD_SUPPORT=/dls_sw/prod/R3.14.12.3/support
+
+# If you don't want to install into $(TOP) then
+# define INSTALL_LOCATIOn_APP here
+#INSTALL_LOCATION_APP=<fullpathname>
+
+AREADETECTOR=   $(PROD_SUPPORT)/areaDetector/1-9dls19
+COMMON=         $(PROD_SUPPORT)/BL13I-COMMON/1-20
+# Now necessry to get screens for autoProcServControl IOCs
+PROCSERV=       $(PROD_SUPPORT)/procServControl/1-15-1
+
+MO2I=           $(PROD_IOCS)/BL13I/BL13I-MO-IOC-02/1-8
+MO3I=           $(PROD_IOCS)/BL13I/BL13I-MO-IOC-03/1-4
+MO4I=           $(PROD_IOCS)/BL13I/BL13I-MO-IOC-04/1-10-3
+MO5I=           $(PROD_IOCS)/BL13I/BL13I-MO-IOC-05/2-1
+MO7I=           $(PROD_IOCS)/BL13I/BL13I-MO-IOC-07/2-1
+MO10I=          $(PROD_IOCS)/BL13I/BL13I-MO-IOC-10/1-4
+MO11I=          $(PROD_IOCS)/BL13I/BL13I-MO-IOC-11/2-2
+MO24I=          $(PROD_IOCS)/BL13I/BL13I-MO-IOC-24/2-0
+
+EA1I=           $(PROD_IOCS)/BL13I/BL13I-EA-IOC-01/2-1
+EA2I=           $(PROD_IOCS)/BL13I/BL13I-EA-IOC-02/1-2
+EA3I=           $(PROD_IOCS)/BL13I/BL13I-EA-IOC-03/1-0
+EA4I=           $(PROD_IOCS)/BL13I/BL13I-EA-IOC-04/1-2-2
+EA13I=          $(PROD_IOCS)/BL13I/BL13I-EA-IOC-13/1-0
+
+VA1I=           $(PROD_IOCS)/BL13I/BL13I-VA-IOC-01/2-3
+VA2I=           $(PROD_IOCS)/BL13I/BL13I-VA-IOC-02/1-10
+VA3I=           $(PROD_IOCS)/BL13I/BL13I-VA-IOC-03/1-0
+
+DI1I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-01/2-0
+DI2I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-02/1-3
+DI3I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-03/2-0-1
+DI4I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-04/2-0-1
+DI5I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-05/2-0-2
+DI7I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-07/2-0-2
+DI8I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-08/2-0-1
+DI9I=           $(PROD_IOCS)/BL13I/BL13I-DI-IOC-09/2-0
+DI10I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-10/6-3
+DI11I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-11/1-1
+DI12I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-12/2-0
+DI13I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-13/2-0-1
+DI14I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-14/1-1
+DI16I=          $(PROD_IOCS)/BL13I/BL13I-DI-IOC-16/1-2
+
+CS1I=           $(PROD_IOCS)/BL13I/BL13I-CS-IOC-01/1-4
+# CS2: Retired procServ ioc
+CS3I=           $(PROD_IOCS)/BL13I/BL13I-CS-IOC-03/2-0-2
+# CS4: Retired procServ ioc
+CS5I=           $(PROD_IOCS)/BL13I/BL13I-CS-IOC-05/1-7
+
+BL13I=		    $(PROD_SUPPORT)/BL13I/1-23
+BLGUI=          $(PROD_SUPPORT)/BLGui/3-11
+SLIT=           $(PROD_SUPPORT)/slit/3-24
+GDA=            $(PROD_SUPPORT)/gda/2014-1
+BLINTERFACE=    $(PROD_SUPPORT)/BLInterface/4-4
+INSERTIONDEVICE=$(PROD_SUPPORT)/insertionDevice/5-46
+COMMON=         $(PROD_SUPPORT)/BL13I-COMMON/1-20
+
+# EPICS_BASE usually appears last so other apps can override stuff:
+EPICS_BASE=/dls_sw/epics/R3.14.12.3/base
+
+-include $(TOP)/configure/RELEASE.private
