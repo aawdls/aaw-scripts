@@ -1,3 +1,4 @@
+#!/dls_sw/prod/tools/RHEL6-x86_64/defaults/bin/dls-python
 import subprocess
 import re
 import os.path, sys
