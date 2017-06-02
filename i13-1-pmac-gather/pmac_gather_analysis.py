@@ -46,7 +46,7 @@ class GatherPlotter():
         f.close()
 
 
-    def plot(self, plotParams, outputfig):
+    def plot(self, plotParams, outputfig, desired_xnlim, desired_xplim):
 
         # Preapre the data
         y1 = self.column[self.headers[1]]
@@ -58,12 +58,20 @@ class GatherPlotter():
         fig = plt.figure()
 
         ax = fig.add_axes([0.1, 0.1, 0.7, 0.7])
+        # Axes for second series - shares x axis
+        ax2 = ax.twinx()
+
+
+
+        # Set optional limits on x axis
+        if desired_xnlim is not None and desired_xplim is not None:
+            print "Set xlim for", plotParams['title'], "to %d - %d" % (desired_xnlim,desired_xplim)
+            ax.set_xlim(desired_xnlim,desired_xplim)
+            ax2.set_xlim(desired_xnlim,desired_xplim)
 
         # Axes for first series
         ax.plot(x1, y1, "b-")
 
-        # Axes for second series - shares x axis
-        ax2 = ax.twinx()
         ax2.plot(x2, y2, "r-")
 
         #ax.set_xticks(x1)
@@ -74,6 +82,7 @@ class GatherPlotter():
         ax2.set_ylabel(self.headers[2], color="r")
         ax.set_xlabel(self.headers[0])
         ax.set_title(plotParams['title'])
+        ax.grid(color="gray")
 
         # Legend
         #legend = plt.legend(bbox_to_anchor=(1.01, 1), loc=2, borderaxespad=0.)
@@ -82,12 +91,12 @@ class GatherPlotter():
         #plt.show()
         fig.savefig(outputfig, bbox_inches='tight')
 
-def do_plot(input_filename, title, timebase_ms, output_filename):
+def do_plot(input_filename, title, timebase_ms, output_filename, desired_xnlim=None, desired_xplim=None):
     # Create plotter object
     my_plotter = GatherPlotter(timebase_ms)
     my_plotter.read_csv_file(input_filename)
 
-    my_plotter.plot({'title': title}, output_filename)
+    my_plotter.plot({'title': title}, output_filename, desired_xnlim, desired_xplim)
 
 def main(argv):
     # Parse command line options
