@@ -4,19 +4,28 @@ Copied from work done by Chris Turner on GPFS test analysis
 """
 from pkg_resources import require
 require('matplotlib')
-import csv, sys, getopt
+import csv, sys, getopt, re
 from collections import OrderedDict
 import os
 
 import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerLine2D
+#from matplotlib.legend_handler import HandlerLine2D
+
+IS_A_TIME = 1
+IS_A_POSITION = 2
+IS_A_VELOCITY = 3
 
 class GatherPlotter():
 
-    def __init__(self, timebase_ms):
+    def __init__(self, timebase_ms, number_of_data_columns=2, mres=1):
         self.headers = []
         self.column = {}
+        self.column_data_type = {}
+        self.column_multiplier = {}
         self.timebase_ms = timebase_ms
+        self.number_of_data_columns = number_of_data_columns
+        self.mres = mres
+        self.egu = "deg"
 
     def read_csv_file(self, input_filename):
 
@@ -31,16 +40,45 @@ class GatherPlotter():
         self.column = OrderedDict()
         self.headers[0] = "Time /ms"
 
+        # We will give friendlier labels to our columns
+        new_headers = []
+        
+        print "self.mres", self.mres
+        
+        for h in self.headers:
+            new_header = ""
+            # Working out what data type this is
+            if re.search('position', h, re.IGNORECASE):
+                self.column_data_type[h] = IS_A_POSITION
+                self.column_multiplier = float(self.mres)
+                new_header = "Position / %s" % self.egu
+            elif re.search('velocity', h, re.IGNORECASE):
+                self.column_data_type[h] = IS_A_VELOCITY
+                self.column_multiplier = float(self.mres) / self.timebase_ms * 1000.0 * 50
+                new_header = "Velocity / %s/s" % self.egu
+            elif re.search('time', h, re.IGNORECASE):
+                self.column_data_type[h] = IS_A_TIME
+                self.column_multiplier = 1.0
+                new_header = "Time /ms"
+            new_headers.append(new_header)
+            
+            print new_header, self.column_multiplier
+        # Updated header names
+        print new_headers
+        self.headers = new_headers
+        
         for h in self.headers:
             self.column[h] = []
 
         # Read the row data
         for row in reader:
             for label, v in zip(self.headers, row):
-                # Get time in ms
-                if label == self.headers[0]:
-                    v = float(v) * self.timebase_ms
-
+                # Ignore empty columns
+                if label != "":
+                    
+                    # Scale axis appropriately
+                    v = float(v) * self.column_multiplier
+                    
                 self.column[label].append(v)
 
         f.close()
@@ -56,10 +94,13 @@ class GatherPlotter():
 
         # Create and configure the plot
         fig = plt.figure()
-
         ax = fig.add_axes([0.1, 0.1, 0.7, 0.7])
-        # Axes for second series - shares x axis
-        ax2 = ax.twinx()
+        
+        at_leat_two_data_column = self.number_of_data_columns >= 2
+        
+        if at_leat_two_data_column:
+            # Axes for second series - shares x axis
+            ax2 = ax.twinx()
 
 
 
@@ -67,19 +108,21 @@ class GatherPlotter():
         if desired_xnlim is not None and desired_xplim is not None:
             print "Set xlim for", plotParams['title'], "to %d - %d" % (desired_xnlim,desired_xplim)
             ax.set_xlim(desired_xnlim,desired_xplim)
-            ax2.set_xlim(desired_xnlim,desired_xplim)
+            if at_leat_two_data_column:
+                ax2.set_xlim(desired_xnlim,desired_xplim)
 
         # Axes for first series
         ax.plot(x1, y1, "b-")
-
-        ax2.plot(x2, y2, "r-")
+        if at_leat_two_data_column:
+            ax2.plot(x2, y2, "r-")
 
         #ax.set_xticks(x1)
         #ax.set_xticklabels(, rotation=45)
 
         # Labels
         ax.set_ylabel(self.headers[1], color="b")
-        ax2.set_ylabel(self.headers[2], color="r")
+        if at_leat_two_data_column:
+            ax2.set_ylabel(self.headers[2], color="r")
         ax.set_xlabel(self.headers[0])
         ax.set_title(plotParams['title'])
         ax.grid(color="gray")
@@ -91,9 +134,9 @@ class GatherPlotter():
         #plt.show()
         fig.savefig(outputfig, bbox_inches='tight')
 
-def do_plot(input_filename, title, timebase_ms, output_filename, desired_xnlim=None, desired_xplim=None):
+def do_plot(input_filename, title, timebase_ms, output_filename, desired_xnlim=None, desired_xplim=None, num_columns=2, mres=1):
     # Create plotter object
-    my_plotter = GatherPlotter(timebase_ms)
+    my_plotter = GatherPlotter(timebase_ms, number_of_data_columns=num_columns, mres=mres)
     my_plotter.read_csv_file(input_filename)
 
     my_plotter.plot({'title': title}, output_filename, desired_xnlim, desired_xplim)
