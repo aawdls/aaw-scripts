@@ -45,7 +45,7 @@ class AutosaveBackup:
         """Find the latest files in targetDir, assuming they have the the form ...XXX_0.sav to ...XXX_2.sav
         @param targetDir Directory to search
         @return latestFiles A list of the latest files in targetDir"""
-        latestFilePattern = r".+[0-9]{2}_[0-2]\.sav$"
+        latestFilePattern = r".+_[0-2]\.sav$"
         latestFiles = list()
         
         print targetDir
@@ -104,11 +104,11 @@ class AutosaveBackup:
                 shutil.copy2(sourcepath, destpath)
         
         
-    def __init__(self, bl, whichIoc):
+    def __init__(self, bl, whichIocs):
         """@param bl Beamline in IT notation e.g. i13 i13-1
         @param whichIoc IOC name eg BL13I-EA-IOC-03"""
         self.bl = bl
-        self.whichIoc = whichIoc
+        self.whichIocs = whichIocs
 
         # Key paths
         self.autosaveTop = "/dls_sw/{0}/epics/autosave".format(self.bl)
@@ -127,13 +127,15 @@ class AutosaveBackup:
             sys.exit()
             
         # Check "which IOC" argument is valid
-        if not self.isAnIoc(self.whichIoc):
-            if not (self.whichIoc == "all"):
-                self.printUsage()
-                sys.exit()
+        for given_argument in self.whichIocs:
+            if not self.isAnIoc(given_argument):
+                if not (self.whichIocs[0] == "all"):
+                    self.printUsage()
+                    sys.exit()
         
         # Make the user check details before proceeding
-        print "We will back up the latest autosave files for {0}, ioc {1}".format(self.bl, self.whichIoc)
+        print "We will back up the latest autosave files for {0}, ioc:".format(self.bl)
+        print self.whichIocs
         print " from {0}".format(self.autosaveTop)
         print " to {0}".format(self.backupTarget)
         user = raw_input( "Is this right? (y/n) " )
@@ -151,15 +153,15 @@ class AutosaveBackup:
         self.backupFileList = dict()
         
         # If "all": list contents of top-level directory
-        if (self.whichIoc == "all"):
+        if (self.whichIocs[0] == "all"):
             dirsToSearch = self.scanSourceDirs()
                     
             if (dirsToSearch is None or len(dirsToSearch) == 0):
                 print "Couldn't find any autosave directories in the source path."
                 sys.exit()
         else:
-            # Otherwise just search for this one IOC
-            dirsToSearch = [self.whichIoc]
+            # Otherwise just search for given IOCs
+            dirsToSearch = self.whichIocs
             
         print "\nLooking for files..."
         for onedir in dirsToSearch:
@@ -197,6 +199,6 @@ if __name__ == "__main__":
     bl = sys.argv[1]
     
     # Second argument: IOC name or "all"
-    whichIoc = sys.argv[2]
+    whichIocs = sys.argv[2:]
     
-    a = AutosaveBackup(bl, whichIoc)
+    a = AutosaveBackup(bl, whichIocs)
