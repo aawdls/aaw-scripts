@@ -49,23 +49,27 @@ class GatherPlotter():
             new_header = ""
             # Working out what data type this is
             if re.search('position', h, re.IGNORECASE):
-                self.column_data_type[h] = IS_A_POSITION
-                self.column_multiplier = float(self.mres)
+
                 new_header = "Position / %s" % self.egu
+                self.column_data_type[new_header] = IS_A_POSITION
+                self.column_multiplier[new_header] = float(self.mres)
             elif re.search('velocity', h, re.IGNORECASE):
-                self.column_data_type[h] = IS_A_VELOCITY
-                self.column_multiplier = float(self.mres) / self.timebase_ms * 1000.0 * 50
+
                 new_header = "Velocity / %s/s" % self.egu
+                self.column_data_type[new_header] = IS_A_VELOCITY
+                self.column_multiplier[new_header] = float(self.mres) * 1000.0 * 5
             elif re.search('time', h, re.IGNORECASE):
-                self.column_data_type[h] = IS_A_TIME
-                self.column_multiplier = 1.0
+
                 new_header = "Time /ms"
+                self.column_data_type[new_header] = IS_A_TIME
+                self.column_multiplier[new_header] = self.timebase_ms
             new_headers.append(new_header)
             
             print new_header, self.column_multiplier
         # Updated header names
-        print new_headers
+        
         self.headers = new_headers
+        print self.headers
         
         for h in self.headers:
             self.column[h] = []
@@ -77,7 +81,8 @@ class GatherPlotter():
                 if label != "":
                     
                     # Scale axis appropriately
-                    v = float(v) * self.column_multiplier
+                    v = float(v) * self.column_multiplier[label]
+                    #print "Scaling %s by %f" % (label, self.column_multiplier[label])
                     
                 self.column[label].append(v)
 
