@@ -201,11 +201,11 @@ if __name__ == "__main__":
     
     # Define test parameters
     testParamsJ13 = {
-        "numImagesPerFile":   1,
-        "numFiles":           1,
+        "numImagesPerFile":   512,
+        "numFiles":           100,
         "exposureTime":       0.2,
         "acquirePeriod":      0.2,
-        "excaliburPrefix":    "BL13J-EA-EXCBR-01:CONFIG:ACQUIRE",
+        "excaliburPrefix":    "BL13J-EA-EXCBR-01:CONFIG",
         "camPrefix":          ":ACQUIRE",
         "hdfPrefix":          ":PHDF",
         "zebraPrefix":        "BL13J-EA-ZEBRA-03"}

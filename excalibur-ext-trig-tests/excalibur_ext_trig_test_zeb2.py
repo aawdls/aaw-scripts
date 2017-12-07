@@ -6,20 +6,27 @@ from cothread import Sleep
 #from pcoSim import *
 import datetime, time, csv, sys, os, logging, subprocess
 
+class OneResult():
+    def __init__(self, number_acquired, number_requested, write_time, write_speed):
+        self.number_acquired = number_acquired
+        self.number_requested = number_requested
+        self.write_time = write_time
+        self.write_speed = write_speed
+
+
+
 class Result():
     def __init__(self):
-        self.nums_acquired = []
-        self.nums_expected = []
+        self.result_list = []
         
-    def add(self, number_acquired, number_requested):
-        self.nums_acquired.append(number_acquired)
-        self.nums_expected.append(number_requested)
+    def add(self, number_acquired, number_requested, write_time, write_speed):
+        self.result_list.append(OneResult(number_acquired, number_requested, write_time, write_speed))
         
     def print_out(self):
         i = 0
-        logging.info("Test #\tAcquired\tRequested")
-        for number_acquired, number_requested in zip(self.nums_acquired, self.nums_expected):
-            logging.info("%d\t%d\t%d\t" % (i, number_acquired, number_requested ))
+        logging.info("Test #\tAcquired\tRequested\tHDF write time (s)\tHDF write speed (Mb/s)")
+        for result in self.result_list:
+            logging.info("%d\t%d\t%d\t%f\t%f\t" % (i, result.number_acquired, result.number_requested, result.write_time, result.write_speed ))
             i = i + 1
 
 class ExcaliburTriggerTest():
@@ -111,7 +118,10 @@ class ExcaliburTriggerTest():
     def detector_still_armed(self):
         """Return True if Detector is armed"""
         detector_armed = caget(self.pv["acquire"], datatype=DBR_LONG)
-        hdf_armed = caget(self.pv["capture_rbv"], datatype=DBR_LONG)
+        hdf_armed = False
+        for node in xrange(1,7):
+            hdf_armed = hdf_armed or caget((self.pv["node_capture_pattern"] % node), datatype=DBR_LONG)
+        #hdf_armed = caget(self.pv["capture_rbv"], datatype=DBR_LONG)
 
         if (detector_armed == 1):
             logging.debug("Detector is still armed")
@@ -152,7 +162,7 @@ class ExcaliburTriggerTest():
                 
             # Give Merlin time to complete
             when_we_started_waiting = time.time()
-            how_patient_we_are = 5 #seconds
+            how_patient_we_are = 600 #seconds
             
             
             
@@ -169,14 +179,18 @@ class ExcaliburTriggerTest():
             # Take a note of how many frames we got versus how many we wanted.
             number_arrays_collected = caget(self.pv["array_counter_rbv"], datatype=DBR_LONG)
             number_arrays_requested = self.parameters["numImagesPerFile"]
-            logging.info("Acquired %d, requested %d" % (number_arrays_collected, number_arrays_requested))
-            
+            write_time = caget(self.pv["write_time"], datatype=DBR_LONG)
+            write_speed = caget(self.pv["write_speed"], datatype=DBR_LONG)
+
+            logging.info("Acquired %d, requested %d, HDF5 write time %f s, HDF5 speed %f Mb/s" % (number_arrays_collected, number_arrays_requested, write_time, write_speed))
+
             # Mismatch
             if (number_arrays_collected != number_arrays_requested):
                 logging.warning("Number of arrays collected does not match number requested.")
-            
+
+
             # Record the results
-            self.results.add(number_arrays_collected, number_arrays_requested)
+            self.results.add(number_arrays_collected, number_arrays_requested, write_time, write_speed)
             
         # Print the results
         self.results.print_out()
@@ -239,10 +253,11 @@ if __name__ == "__main__":
     # Define test parameters
     testParamsJ13 = {
         "numImagesPerFile":   10000,
-        "numFiles":           140,
-        "exposureTime":       0.01,
-        "acquirePeriod":      0.01,
+        "numFiles":           150,
+        "exposureTime":       0.032,
+        "acquirePeriod":      0.032,
         "excaliburPrefix":    "BL13J-EA-EXCBR-01:CONFIG",
+        "nodePrefix":         "BL13J-EA-EXCBR-01:%d",
         "camPrefix":          ":ACQUIRE",
         "hdfPrefix":          ":HDF5",
         "zebraPrefix":        "BL13J-EA-ZEBRA-02"}
@@ -252,6 +267,7 @@ if __name__ == "__main__":
     # Define PV names
     cam_prefix = testParams["excaliburPrefix"] + testParams["camPrefix"]
     hdf_prefix = testParams["excaliburPrefix"] + testParams["hdfPrefix"]
+    node_hdf_pattern = testParams["nodePrefix"] + testParams["hdfPrefix"]
     zebra_prefix = testParams["zebraPrefix"]
     
     testParams["pvNames"] = {
@@ -267,8 +283,11 @@ if __name__ == "__main__":
         "num_capture"       : hdf_prefix + ":NumCapture",
         "capture"           : hdf_prefix + ":Capture",
         "capture_rbv"       : hdf_prefix + ":Capture_RBV",
+        "node_capture_pattern": node_hdf_pattern + ":Capture_RBV",
         "data_dir"          : hdf_prefix + ":FilePath_RBV",
         "file_number"       : hdf_prefix + ":FileNumber_RBV",
+        "write_time"        : hdf_prefix + ":RunTime",
+        "write_speed"       : hdf_prefix + ":IOSpeed",
         
         # Zebra
         "config_file_path"  : zebra_prefix + ":CONFIG_FILE",
