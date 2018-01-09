@@ -17,7 +17,7 @@ IS_A_VELOCITY = 3
 
 class GatherPlotter():
 
-    def __init__(self, timebase_ms, number_of_data_columns=2, mres=1):
+    def __init__(self, timebase_ms, number_of_data_columns=2, mres=1, egu="deg"):
         self.headers = []
         self.column = {}
         self.column_data_type = {}
@@ -25,7 +25,7 @@ class GatherPlotter():
         self.timebase_ms = timebase_ms
         self.number_of_data_columns = number_of_data_columns
         self.mres = mres
-        self.egu = "deg"
+        self.egu = egu
 
     def read_csv_file(self, input_filename):
 
@@ -89,7 +89,7 @@ class GatherPlotter():
         f.close()
 
 
-    def plot(self, plotParams, outputfig, desired_xnlim, desired_xplim):
+    def plot(self, plotParams, outputfig, desired_xnlim, desired_xplim, desired_ynlim=None, desired_yplim=None):
 
         # Preapre the data
         y1 = self.column[self.headers[1]]
@@ -116,6 +116,12 @@ class GatherPlotter():
             if at_leat_two_data_column:
                 ax2.set_xlim(desired_xnlim,desired_xplim)
 
+        # Set optional limits on y axis
+        if desired_ynlim is not None and desired_yplim is not None:
+            print "Set ylim for", plotParams['title'], "to %d - %d" % (
+            desired_ynlim, desired_yplim)
+            ax.set_ylim(desired_ynlim, desired_yplim)
+
         # Axes for first series
         ax.plot(x1, y1, "b-")
         if at_leat_two_data_column:
@@ -139,12 +145,12 @@ class GatherPlotter():
         #plt.show()
         fig.savefig(outputfig, bbox_inches='tight')
 
-def do_plot(input_filename, title, timebase_ms, output_filename, desired_xnlim=None, desired_xplim=None, num_columns=2, mres=1):
+def do_plot(input_filename, title, timebase_ms, output_filename, desired_xnlim=None, desired_xplim=None, num_columns=2, mres=1, egu="deg", desired_ynlim=None, desired_yplim=None):
     # Create plotter object
-    my_plotter = GatherPlotter(timebase_ms, number_of_data_columns=num_columns, mres=mres)
+    my_plotter = GatherPlotter(timebase_ms, number_of_data_columns=num_columns, mres=mres, egu=egu)
     my_plotter.read_csv_file(input_filename)
 
-    my_plotter.plot({'title': title}, output_filename, desired_xnlim, desired_xplim)
+    my_plotter.plot({'title': title}, output_filename, desired_xnlim, desired_xplim, desired_ynlim=desired_ynlim, desired_yplim=desired_yplim)
 
 def main(argv):
     # Parse command line options
