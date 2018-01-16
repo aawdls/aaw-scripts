@@ -85,13 +85,15 @@ def ptychoTomoScan_HW(nX=5,nY=5,dX=2,dY=2,exp=1,detector="excalibur",sT=-90.0,nT
     nZ = 0
     dZ = 0
     mot = 0
-    
+
+    # We will use the current position as starting position
     xIn = t1_sx.getPosition()
     yIn = t1_sy.getPosition()
     zIn = t1_sz.getPosition()
-    
+
+    # Prepare a log file
     _fname = ptychoTomoScan_HW.__name__
-    log_path="/dls/i13-1/data/2017/mt17254-1/raw/"
+    log_path="/dls/i13-1/data/2018/cm19663-1/raw/"
     file_name = _fname + "_"
     timestr = time.strftime("%d_%m_%Y-%H%M%S")
     file_name += timestr
@@ -102,26 +104,78 @@ def ptychoTomoScan_HW(nX=5,nY=5,dX=2,dY=2,exp=1,detector="excalibur",sT=-90.0,nT
     msg = "theta, scan, attempt"
     logfh.write(msg+"\n")
     logfh.flush()
-    
+
+    # Get list of PV names for this detector
     pv = set_pvs(detector)
-    
+
+    # Zero Exclaibur's array counters to aid spotting problems
+    if detector == "excalibur":
+        zero_excalibur_counters()
+
+    # Initial configuration of detector, Zebra, Geobrick
     configure_detector(detector,nX,nY,exp,pv)
-    
     configure_zebra(pv,detector,exp,readout,nX*nY)
     configure_scan(nX,nY,nZ,dX,dY,dZ,detector,exp,readout,mot)
-        
+
+    # Calculate list of Theta positions, with:
+    # dT = Theta step
+    # rT = Theta range
+    # eT = end Theta
+    # sT = start Theta
     dT = rT / (nT-1)
     eT = sT + (nT-1)*(dT)
     print sT, dT, eT
     theta_range = dnp.arange(sT, eT + dT, dT)
     print "Theta positions:"
     print theta_range
-    
-    count = 1
+
+    # Loop over Theta positions
+    count = 0
     for theta in theta_range:
         attempts_max = 3
         attempt_count = 0
         proj_ok = 0
+        count += 1
+
+        # Move Theta to next position
+        t1_theta.moveTo(theta)
+        print t1_theta
+        print "projection number = ", count
+
+        # If the projection fails it will be retried a few times
+        while proj_ok == 0 and attempt_count < attempts_max:
+            # Configure and arm the detector, configure the Zebra
+            configure_detector(detector, nX, nY, exp, pv)
+            arm_detector(pv, detector)
+            configure_zebra(pv, detector, exp, readout, nX * nY)
+
+            # Move sample X Y Z to initial position
+            t1_sx.moveTo(xIn)
+            t1_sy.moveTo(yIn)
+            t1_sz.moveTo(zIn)
+
+            # We only need to update the start and centre positions for the scan
+            # on the Geobrick since the other settings stay the same
+            configure_scan_stage(nX, nY, nZ, dX, dY, dZ)
+
+            # Start the projection proper
+            # - we judge preojection failed if it takes more than max_time
+            max_time = 5 * ((exp + readout + 5e-3) * nX * nY)
+            proj_ok, hdfpath = trigger(pv, detector, max_time, logfh, attempt_count)
+            print "scan completed: status", proj_ok
+
+            # What to do if projection failed
+            if proj_ok == 0:
+                attempt_count += 1
+                if (attempt_count >= attempts_max):
+                    # TODO: Send an emil?
+                    print "Ran out of attempts"
+                else:
+                    print "Re-trying failed projection, attempt %d" % attempt_count
+                    clear_det(attempt_count, pv, 2, 1)
+
+
+        """
         while proj_ok == 0 and attempt_count < attempts_max:
             arm_detector(pv, detector)
             configure_detector(detector,nX,nY,exp,pv)
@@ -141,7 +195,8 @@ def ptychoTomoScan_HW(nX=5,nY=5,dX=2,dY=2,exp=1,detector="excalibur",sT=-90.0,nT
             if proj_ok == 0:
                 attempt_count += 1
                 clear_det(attempt_count,pv,2,1)
-                
+                """
+    # Close the log file
     logfh.close()
     
     
@@ -225,11 +280,13 @@ def ptychoTomoScan_SW(nX=5,nY=5,dX=2,dY=2,exp=1,sT=-90.0,nT=180.0,rT=180.0):
         scan sample_lab_xy two_motor_positions merlin_sw_hdf exptime
 
 def configure_scan(nX,nY,nZ,dX,dY,dZ,detector,exp,readout,mot):
+    """Set all P variables on Geobrick necessary to configure a scan"""
     configure_scan_params(nX,nY,nZ,dX,dY,dZ)
     configure_scan_stage(nX,nY,nZ,dX,dY,dZ)
     configure_scan_detector(detector,exp,readout,mot)
 
 def configure_scan_params(nX,nY,nZ,dX,dY,dZ):
+    """Set P variables for number of steps and setp size on Geobrick"""
     send_command('P2411',str(nX))# X_NUM_STEPS
     send_command('P2412',str(nY))# Y_NUM_STEPS
     send_command('P2428',str(nZ))# Z_NUM_STEPS
@@ -239,6 +296,7 @@ def configure_scan_params(nX,nY,nZ,dX,dY,dZ):
     send_command('P2429',str(dZ))# Z_STEP_SIZE [um]
 
 def configure_scan_stage(nX,nY,nZ,dX,dY,dZ):
+    """Set P variables for start and centre positions on Geobrick"""
     roiX = nX*dX #[um]
     roiY = nY*dY #[um]
     roiZ = nZ*dZ #[um]
@@ -260,6 +318,7 @@ def configure_scan_stage(nX,nY,nZ,dX,dY,dZ):
     send_command('P2425',str(centreZ))#Z CENTRE
 
 def configure_scan_detector(detector,exp,readout,mot):
+    """Set P variables for Exposure, Readout and Motion time (unused) on Geobrick"""
     print "Configure scan detector:"
     print "Readout = " + str(readout)
     print "Exposure = " + str(exp)
@@ -281,15 +340,30 @@ def wait_for_excalibur_state(desired_state, pv):
         print "Waiting for Excalibur to be in state %s. Waited %.1f s so far." % (desired_state, count * 0.5)
     if count >= count_max:
         print "Excalibur didn't become %s within 30s, something must be wrong." % (desired_state)
+        # TOTO: Send email or similar to notify a problem with the detector
+
+def zero_excalibur_counters():
+    """ Zero Excalibur array counters so it's easier to spot problems """
+    counter_pvs = ['BL13J-EA-EXCBR-01:CONFIG:ACQUIRE:ArrayCounter',
+                'BL13J-EA-EXCBR-01:CONFIG:HDF5:ArrayCounter',
+                'BL13J-EA-EXCBR-01:CONFIG:HDF5:DroppedArrays',
+                'BL13J-EA-EXCBR-01:CONFIG:FIX:ArrayCounter',
+                'BL13J-EA-EXCBR-01:CONFIG:FIX:DroppedArrays']
+    for counter_pv in counter_pvs:
+        caput(counter_pv, 0)
 
 def arm_detector(pv, detector):
+    """Arm the detector. Blocks until we think the detector is ready to accept triggers."""
 
     # Wait for Excalibur to be in state Idle before trying to arm it
     if detector.find("excalibur") >= 0:
         wait_for_excalibur_state("Idle",pv)
 
+    # Set Acquire and start HDF writer
     caput(pv.acquire_pv, 1)
     caput(pv.hdf_capture_pv, 1)
+
+    # Confirm that Acquire has been set
     acquire_state = caget(pv.acquire_pv)
     count_max = 50
     count = 0
