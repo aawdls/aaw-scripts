@@ -179,9 +179,10 @@ def main():
     svn_server = svnClient()
     svn_module_list = get_svn_module_list(svn_server, area)
 
-    # We assume that if a module exists in both SVN and git, it has been moved to git
-    for module_name in svn_module_list:
-        if module_name in git_module_list:
+    # We assume that if a module exists in both SVN and git,
+    # it has been moved to git and we ignore the SVN version
+    for module_name in git_module_list:
+        if module_name in svn_module_list:
             svn_module_list.remove(module_name)
 
     # Combining the lists, creating objects
@@ -222,7 +223,7 @@ def main():
             else:
                 number_of_IOCs = 0
 
-            logging.debug("Processing module %d of %d (%s) which appears in %d IOCs" %(row_counter, number_of_rows, module_name))
+            logging.debug("Processing module %d of %d (%s) which appears in %d IOCs" %(row_counter, number_of_rows, module_name, number_of_IOCs))
             if this_module.vcs == "svn":
                 contact, cc = this_module.get_svn_module_contact(svn_server)
             else:
