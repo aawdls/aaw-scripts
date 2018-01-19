@@ -123,15 +123,18 @@ def count_up_IOC_dependencies():
 
     logging.debug("Counting up support modules depended on by IOCs")
     # Get dependency tree for each IOC
+    total_number_IOCs = len(startup_files.keys())
+    debug_counter = 0
     for ioc in startup_files.keys():
 
+        debug_counter += 1
         # Some basic filters
         if ioc.startswith("BL") \
                 and "-PS-" not in ioc and "BL-" not in ioc and "BL01B" not in ioc \
                 and "-SIM-" not in ioc and "sim" not in ioc:
 
             # Get dependency tree for this IOC
-            logging.debug("ioc %s" % ioc)
+            logging.debug("ioc %s (%d of %d)" % (ioc, debug_counter, total_number_IOCs))
             path = "/".join(startup_files[ioc].split("/")[:-3])
             tree = dls_dependency_tree.dependency_tree(None, module_path=path)
             if tree.name and tree.name != "BLInterface" and tree.name != "ioc":
