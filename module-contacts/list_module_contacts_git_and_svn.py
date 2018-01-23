@@ -63,12 +63,15 @@ def get_svn_module_list(svn_server, area):
     return svn_module_list
 
 class SupportModule():
-    def __init__(self, module_name, vcs, area):
+    def __init__(self, module_name, in_git=False, in_svn=False, area="support"):
         self.module_name = module_name
-        self.vcs = vcs
+        self.in_git = in_git
+        self.in_svn = in_svn
         self.contact = ""
         self.cc = ""
         self.area = area
+        self.has_git_contact = False
+        self.has_svn_contact = False
 
     def get_module_name(self):
         return self.module_name
@@ -89,6 +92,10 @@ class SupportModule():
             cc = cc[path]
         else:
             cc = "unspecified"
+
+        # Is it really something?
+        self.has_svn_contact = looks_like_real_contact(contact)
+
         # Store
         self.contact = contact
         self.cc = cc
@@ -100,16 +107,44 @@ class SupportModule():
         vcs = git_server.temp_clone(source)
 
         # Retrieve contact info
-        contact = vcs.repo.git.check_attr(
-            "module-contact", ".").split(' ')[-1]
-        cc_contact = vcs.repo.git.check_attr(
-            "module-cc", ".").split(' ')[-1]
+        try:
+            contact = vcs.repo.git.check_attr(
+                "module-contact", ".").split(' ')[-1]
+            cc_contact = vcs.repo.git.check_attr(
+                "module-cc", ".").split(' ')[-1]
+        except:
+            logging.warning("Exception from git contact check of %s")
+            self.contact = "unspecified"
+            self.cc = "unspecified"
+            self.has_git_contact = False
+        else:
+            # Store
+            self.contact = contact
+            self.cc = cc_contact
 
-        shutil.rmtree(vcs.repo.working_tree_dir)
-        # Store
-        self.contact = contact
-        self.cc = cc_contact
+            # Is it really something?
+            self.has_git_contact = looks_like_real_contact(contact)
+
+        finally:
+            # Delete local clone
+            shutil.rmtree(vcs.repo.working_tree_dir)
+
         return contact, cc_contact
+
+    def get_vcs(self):
+        vcs = []
+        if self.in_git:
+            vcs.append("Git")
+        if self.in_svn:
+            vcs.append("SVN")
+        return ", ".join(vcs)
+
+def looks_like_real_contact(input_str):
+    """Return True if input_str looks like a contact"""
+    if input_str.lower().strip() in ["", "unspecified"]:
+        return False
+    else:
+        return True
 
 def count_up_IOC_dependencies():
     """Count occurences of support modules in dependency tress of IOCs in redirector
@@ -182,18 +217,21 @@ def main():
     svn_server = svnClient()
     svn_module_list = get_svn_module_list(svn_server, area)
 
-    # We assume that if a module exists in both SVN and git,
-    # it has been moved to git and we ignore the SVN version
-    for module_name in git_module_list:
-        if module_name in svn_module_list:
-            svn_module_list.remove(module_name)
-
     # Combining the lists, creating objects
     module_list = []
     for module_name in git_module_list:
-        module_list.append(SupportModule(module_name, "git", area))
+        also_in_svn = False
+        # Check if also in SVN
+        if module_name in svn_module_list:
+            also_in_svn = True
+            # Don't duplicate if so
+            svn_module_list.remove(module_name)
+
+        module_list.append(SupportModule(module_name, in_git=True, in_svn=also_in_svn, area=area))
+
+    # The rest of the modules which don't have a git counterpart
     for module_name in svn_module_list:
-        module_list.append(SupportModule(module_name, "svn", area))
+        module_list.append(SupportModule(module_name, in_svn=True, area=area))
 
     # Sorting the combined list
     logging.debug("Sorting list")
@@ -227,13 +265,16 @@ def main():
                 number_of_IOCs = 0
 
             logging.debug("Processing module %d of %d (%s) which appears in %d IOCs" %(row_counter, number_of_rows, module_name, number_of_IOCs))
-            if this_module.vcs == "svn":
-                contact, cc = this_module.get_svn_module_contact(svn_server)
-            else:
+
+            # Get module contact
+            # Use the SVN one if exists in both and not set in git
+            if this_module.in_git:
                 contact, cc = this_module.get_git_module_contact(git_server)
+            if this_module.in_svn and not this_module.has_git_contact:
+                contact, cc = this_module.get_svn_module_contact(svn_server)
 
             # Write a row of output
-            output_file.write(html.one_row % (this_module.module_name, this_module.vcs, contact, cc, number_of_IOCs))
+            output_file.write(html.one_row % (this_module.module_name, this_module.get_vcs(), contact, cc, number_of_IOCs))
             output_file.flush()
 
         logging.debug("Printing HTML footer")
