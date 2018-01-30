@@ -1,5 +1,5 @@
 #!/bin/env dls-python
-import unittest, logging
+import unittest, logging, datetime
 import para_log_view
 
 example_line = "[Sat Jan 27 09:13:38 2018]2018/01/27 09:13:38.723 FrameHandler: Run[3]--AcqComplete[0]--> Idle[0] "
@@ -31,6 +31,27 @@ class TestParser(unittest.TestCase):
         for bad_line in bad_lines:
             date = para_log_view.get_date_from_line(bad_line)
             self.assertEqual(date, None)
+
+    def test_advance_hour(self):
+        x_date = datetime.datetime(year = 2018,
+                                   month =1,
+                                   day = 27,
+                                   hour = 15,
+                                   minute = 12,
+                                   second=1)
+
+        y_date = datetime.datetime(year=2018,
+                                   month=1,
+                                   day=27,
+                                   hour=16,
+                                   minute=12,
+                                   second=2)
+
+        self.assertEqual(para_log_view.advance_hour(14, x_date, y_date), 15)
+        self.assertEqual(para_log_view.advance_hour(14, x_date, x_date), 15)
+        self.assertEqual(para_log_view.advance_hour(14, x_date, None), 15)
+        self.assertEqual(para_log_view.advance_hour(14, None, y_date), 16)
+        self.assertEqual(para_log_view.advance_hour(14, None, None), 14)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
